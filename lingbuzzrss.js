@@ -11,17 +11,11 @@ feed( function(status, body) {
 	console.log(body);
 } );
 
-function memoizedRequest(url, cb) {
-	// todo: add caching
-	console.error('GET ' + url + ' ...');
-	request(url, cb);
-}
-
 // function for use with async
 function getEntry(entry, cb) {
 	var err = null;
 
-	memoizedRequest(entry.url, parseEntry);
+	request(entry.url, parseEntry);
 	function parseEntry(err, res, body) {
 		if (err) {
 			cb(503, '');
@@ -71,7 +65,7 @@ function feed( cb ) {
 		ttl: '60' // todo: fix?
 	});
 
-	memoizedRequest(lingbuzz, buzzed);
+	request(lingbuzz, buzzed);
 	function buzzed(err, res, body) {
 		if (err) {
 			cb(503, '');
