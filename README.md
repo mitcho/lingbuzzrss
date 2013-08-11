@@ -10,6 +10,6 @@ Runs regularly on my server and is cached by FeedBurner at [http://feeds.feedbur
 Usage for hackers
 -----------------
 
-`node lingbuzzrss.js`
+	node lingbuzzrss.js
 
-Runs using Node. Requires `request`, `cheerio`, and `rss` packages, which are all available on NPM.
+Runs using Node. Requires `async`, `request`, `cheerio`, and `rss` packages, which are all available on NPM.

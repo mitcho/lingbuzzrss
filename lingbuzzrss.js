@@ -1,7 +1,8 @@
 var request = require("request"),
 	cheerio = require("cheerio"),
 // 	fs = require("fs"),
-	rss = require("rss");
+	rss = require("rss"),
+	async = require("async");
 
 var lingbuzz = 'http://ling.auf.net/lingbuzz',
 	domain = 'http://ling.auf.net';
@@ -14,6 +15,42 @@ function memoizedRequest(url, cb) {
 	// todo: add caching
 	console.error('GET ' + url + ' ...');
 	request(url, cb);
+}
+
+// function for use with async
+function getEntry(entry, cb) {
+	var err = null;
+
+	memoizedRequest(entry.url, parseEntry);
+	function parseEntry(err, res, body) {
+		if (err) {
+			cb(503, '');
+			console.error(err);
+		}
+	
+		if (res.statusCode != 200) {
+			// proxy the same status code:
+			console.error(res.statusCode, http.STATUS_CODES[res.statusCode]);
+			cb(res.statusCode, '');
+		}
+	
+		// load cheerio, the faux-jQuery, for the body html
+		var $ = cheerio.load(body);
+		
+		// we can read off the title like this:
+		// $('font b a').text();
+		
+		var keywords = $('table tr:contains(keywords:) td:nth-child(2)').text();
+		entry.categories = keywords.split(', ');
+
+		// Turns out LingBuzz doesn't wrap the description in an element, so we remove
+		// everything else and then read the body text. (!!!)
+		// OMG THIS IS A TERRIBLE HACK!
+		$('body').children().remove();
+		entry.description = $('body').text().trim();
+		
+		cb(err, entry);	
+	}
 }
 
 function feed( cb ) {
@@ -43,27 +80,34 @@ function feed( cb ) {
 	
 		if (res.statusCode != 200) {
 			// proxy the same status code:
-			cb(res.statusCode,'');
 			console.error(res.statusCode, http.STATUS_CODES[res.statusCode]);
+			cb(res.statusCode,'');
 		}
 	
 		// load cheerio, the faux-jQuery, for the body html
 		var $ = cheerio.load(body);
 		var textpart = function(){ return $(this).text(); }
 		var entries = $('table table').first().find('tr');
-		entries.each(function(i, el) {
+
+		var data = entries.map(function(i, el) {
 			var entry = $(el);
 			var authors = entry.find('td:nth-child(1) > a').map(textpart);
 			var status = entry.find('td:nth-child(2)').text();
 			var link = entry.find('td:nth-child(4) > a');
-			feed.item({
+			return {
 				title: link.text(),
 				description: '', // todo
 				url: domain + link.attr('href'), // todo: make more robust
 				author: authors.join('; '),
-			});
+			};
 		});
+		
+		async.map(data, getEntry, function(err, results) {
+			results.forEach(function(entry) {
+				feed.item(entry);
+			});
 
-		cb(200, feed.xml());
+			cb(200, feed.xml());
+		})
 	}
 }
