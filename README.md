@@ -7,6 +7,11 @@ Script to generate an RSS feed for LingBuzz.
 
 Runs regularly on my server and is cached by FeedBurner at [http://feeds.feedburner.com/LingBuzz](http://feeds.feedburner.com/LingBuzz).
 
+Notes for users
+---------------
+
+* The feed excludes external listings shown on the website (ROA + Semantics Archive). Semantics Archive already has its own RSS feed.
+
 Usage for hackers
 -----------------
 
