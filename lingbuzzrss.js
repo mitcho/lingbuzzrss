@@ -166,6 +166,6 @@ request(lingbuzz, function(err, res, body) {
 				feed.item(feedItem);
 		});
 
-		console.log(200, feed.xml());
+		console.log(feed.xml());
 	});
 });
