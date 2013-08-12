@@ -31,6 +31,7 @@ Cache.prototype = {
 			if (err) {
 				console.error('CACHE MISS: ' + key);
 				cb(err);
+				return;
 			}
 
 			try {
