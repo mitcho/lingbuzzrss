@@ -3,7 +3,8 @@ var request = require("request"),
 	fs = require("fs"),
 	RSS = require("rss"),
 	async = require("async"),
-	url = require("url");
+	url = require("url"),
+	http = require("http");
 
 var lingbuzz = 'http://ling.auf.net/lingbuzz',
 	domain = 'http://ling.auf.net',
