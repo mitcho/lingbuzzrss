@@ -1,8 +1,8 @@
 var request = require("request"),
 	cheerio = require("cheerio"),
-//	fscache = require("fscache"),
+	fs = require("fs"),
 	rss = require("rss"),
-	async = require("async")
+	async = require("async"),
 	url = require("url");
 
 var lingbuzz = 'http://ling.auf.net/lingbuzz',
@@ -12,26 +12,65 @@ feed( function(status, body) {
 	console.log(body);
 } );
 
+function Cache(dir) {
+	this.dir = dir;
+}
+Cache.prototype = {
+	filename: function(key) {
+		// todo: make more robust
+		return this.dir + '/' + key + '.json';
+	},
+	stat: function(key, cb) {
+		fs.stat(this.filename(key), cb);
+	},
+	exists: function(key, cb) {
+		fs.exists(this.filename(key), cb);
+	},
+	get: function(key, cb) {
+		fs.readFile(this.filename(key), function(err, json) {
+			if (err) {
+				console.error('CACHE MISS: ' + key);
+				cb(err);
+			}
+
+			try {
+				data = JSON.parse(json);
+				console.error('CACHE GET: ' + key);
+				cb(null, data);
+			} catch(err) {
+				console.error('JSON ERROR: ' + key);
+				cb(err);
+			}
+		});
+	},
+	set: function(key, data, cb) {
+		console.error('CACHE SET: ' + key);
+		fs.writeFile(this.filename(key), JSON.stringify(data), cb);
+	}
+};
+var cache = new Cache('cache');
+
 // function for use with async
 function getFeedItem(entry, cb) {
 	var err = null;
 
 	var $ = cheerio.load(entry);
 	var entry = $(entry);
-	var textpart = function(){ return $(this).text(); }
+	var textpart = function(){ return $(this).text().trim(); }
 	var authors = entry.find('td:nth-child(1) > a').map(textpart);
-	var status = entry.find('td:nth-child(2)').text();
+	var status = entry.find('td:nth-child(2)').text().trim();
 	var link = entry.find('td:nth-child(4) > a');
+	var cacheKey = link.attr('href').replace(/^\/lingbuzz\/(\d+)\/?$/, '$1');
 	var href = url.resolve(domain, link.attr('href'));
 	var source = url.parse(href, true).query['repo'] || 'lingbuzz';
-	feedItem = {
+	
+	var freshFeedItemStub = {
 		title: link.text(),
 		description: '',
 		url: href,
 		author: authors.join('; '),
 		source: source
 	};
-	console.error(feedItem);
 
 	function parseEntry(err, res, body) {
 		if (err) {
@@ -52,21 +91,43 @@ function getFeedItem(entry, cb) {
 		// $$('font b a').text();
 
 		var keywords = $$('table tr:contains(keywords:) td:nth-child(2)').text();
-		feedItem.categories = keywords.split(', ');
+		freshFeedItemStub.categories = keywords.split(', ');
 
 		// Turns out LingBuzz doesn't wrap the description in an element, so we
 		// remove everything else and then read the body text. (!!!)
 		// OMG THIS IS A TERRIBLE HACK!
 		$$('body').children().remove();
-		feedItem.description = $$('body').text().trim();
+		freshFeedItemStub.description = $$('body').text().trim();
 
-		cb(err, feedItem);	
+		cache.set(cacheKey, freshFeedItemStub, function(err) {
+			cb(err, freshFeedItemStub);
+		})
 	}
+	
 	if (source == 'lingbuzz') {
-		console.error('GET ' + feedItem.url + ' ...');
-		request(feedItem.url, parseEntry);
+		if ( status == 'freshly changed' ) {
+			console.error('FRESHLY CHANGED, SO IGNORE THE CACHE!');
+			console.error('GET ' + href + ' ...');
+			request(href, parseEntry);
+			return;
+		}
+		cache.get(cacheKey, function(err, feedItem) {
+			if (err) {
+				console.error(err);
+				console.error('GET ' + href + ' ...');
+				request(href, parseEntry);
+			} else if ( feedItem.title !== freshFeedItemStub.title ||
+				feedItem.author !== freshFeedItemStub.author ) {
+				console.error('BASIC DATA MISMATCH: ' + cacheKey);
+				console.error(feedItem.title,freshFeedItemStub.title,feedItem.author,freshFeedItemStub.author)
+				console.error('GET ' + href + ' ...');
+				request(href, parseEntry);			
+			} else {
+				cb(null, feedItem);
+			}
+		});
 	} else {
-		cb(err, feedItem);
+		cb(err, freshFeedItemStub);
 	}
 }
 
