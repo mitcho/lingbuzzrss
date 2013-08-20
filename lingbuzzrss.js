@@ -91,13 +91,14 @@ function getFeedItem(entryHtml, cb) {
 	var cacheKey = link.attr('href').replace(/^\/lingbuzz\/(\d+)\/?$/, '$1');
 	var href = url.resolve(DOMAIN, link.attr('href'));
 	var source = url.parse(href, true).query.repo || 'lingbuzz';
-	
+
 	var freshFeedItemStub = {
 		title: link.text(),
 		description: '',
 		url: href,
 		author: authors.join('; '),
-		source: source
+		source: source,
+		guid: cacheKey
 	};
 
 	function parseEntry(err, res, body) {
@@ -122,6 +123,11 @@ function getFeedItem(entryHtml, cb) {
 		var keywords = $$('table tr:contains(keywords:) td:nth-child(2)').text();
 		freshFeedItemStub.categories = keywords.split(', ');
 
+		// find previous versions:
+		var versions = $$('table tr:contains(previous versions:) td:nth-child(2) a');
+		var currentVersion = versions.length + 1;
+		freshFeedItemStub.guid = cacheKey + 'v' + currentVersion;
+
 		// Turns out LingBuzz doesn't wrap the description in an element, so we
 		// remove everything else and then read the body text. (!!!)
 		// OMG THIS IS A TERRIBLE HACK!
@@ -132,7 +138,7 @@ function getFeedItem(entryHtml, cb) {
 			cb(err, freshFeedItemStub);
 		});
 	}
-	
+
 	if (source == 'lingbuzz') {
 		if ( status == 'freshly changed' ) {
 			console.error('FRESHLY CHANGED, SO IGNORE THE CACHE!');
@@ -149,7 +155,7 @@ function getFeedItem(entryHtml, cb) {
 				feedItem.author !== freshFeedItemStub.author ) {
 				console.error('BASIC DATA MISMATCH: ' + cacheKey);
 				console.error('GET ' + href + ' ...');
-				request({url: href, headers: HEADERS}, parseEntry);			
+				request({url: href, headers: HEADERS}, parseEntry);
 			} else {
 				cb(null, feedItem);
 			}
