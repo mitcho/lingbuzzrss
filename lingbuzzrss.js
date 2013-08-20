@@ -1,3 +1,8 @@
+// lingbuzzrss.js
+// Michael Yoshitaka Erlewine <mitcho@mitcho.com>
+// Dedicated to the public domain, 2013
+// https://github.com/mitcho/lingbuzzrss/
+
 var request = require("request"),
 	cheerio = require("cheerio"),
 	fs = require("fs"),
@@ -10,6 +15,7 @@ const LINGBUZZ = 'http://ling.auf.net/lingbuzz',
 	DOMAIN = 'http://ling.auf.net',
 	HEADERS = {'User-Agent': 'LingBuzz RSS feed; http://github.com/mitcho/lingbuzzrss'};
 
+// Start building the RSS feed, with the requisite header info
 var feed = new RSS({
 		title: 'LingBuzz',
 		description: 'archive of linguistics articles',
@@ -27,12 +33,13 @@ var feed = new RSS({
 		ttl: '60' // todo: fix?
 	});
 
+// A simple file cache
 function Cache(dir) {
 	this.dir = dir;
 }
 Cache.prototype = {
 	filename: function(key) {
-		// todo: make more robust
+		// todo: make more robust?
 		return this.dir + '/' + key + '.json';
 	},
 	stat: function(key, cb) {
@@ -66,10 +73,15 @@ Cache.prototype = {
 };
 var cache = new Cache('cache');
 
-// function for use with async
+// Gets an individual feed item, by scraping a /lingbuzz/###### webpage.
+// Used as an async callback
+// Q: Which reminds me, why is this code all async anyway?
+// A: Originally I thought maybe it would be served on demand, but caching the feed
+//    makes more sense. So that's what happens now.
 function getFeedItem(entryHtml, cb) {
 	var err = null;
 
+	// load cheerio, the faux-jQuery, for the entry HTML block from the front page
 	var $ = cheerio.load(entryHtml);
 	var entry = $(entryHtml);
 	function textpart() { return $(this).text().trim(); }
@@ -106,6 +118,7 @@ function getFeedItem(entryHtml, cb) {
 		// we can read off the title like this:
 		// $$('font b a').text();
 
+		// get keywords:
 		var keywords = $$('table tr:contains(keywords:) td:nth-child(2)').text();
 		freshFeedItemStub.categories = keywords.split(', ');
 
@@ -163,12 +176,14 @@ request({url: LINGBUZZ, headers: HEADERS}, function(err, res, body) {
 	var entries = $('table table').first().find('tr');
 
 	async.map(entries.toArray(), getFeedItem, function(err, results) {
+		// look at each result; if it's a lingbuzz item, add it to the feed
 		results.forEach(function(feedItem) {
 			console.error(feedItem);
 			if (feedItem.source == 'lingbuzz')
 				feed.item(feedItem);
 		});
 
+		// actually write the feed:
 		console.log(feed.xml());
 	});
 });
