@@ -6,9 +6,11 @@ var request = require("request"),
 	url = require("url"),
 	http = require("http");
 
-var lingbuzz = 'http://ling.auf.net/lingbuzz',
-	domain = 'http://ling.auf.net',
-	feed = new RSS({
+const LINGBUZZ = 'http://ling.auf.net/lingbuzz',
+	DOMAIN = 'http://ling.auf.net',
+	HEADERS = {'User-Agent': 'LingBuzz RSS feed; http://github.com/mitcho/lingbuzzrss'};
+
+var feed = new RSS({
 		title: 'LingBuzz',
 		description: 'archive of linguistics articles',
 		feed_url: 'http://feeds.feedburner.com/LingBuzz',
@@ -75,7 +77,7 @@ function getFeedItem(entryHtml, cb) {
 	var status = entry.find('td:nth-child(2)').text().trim();
 	var link = entry.find('td:nth-child(4) > a');
 	var cacheKey = link.attr('href').replace(/^\/lingbuzz\/(\d+)\/?$/, '$1');
-	var href = url.resolve(domain, link.attr('href'));
+	var href = url.resolve(DOMAIN, link.attr('href'));
 	var source = url.parse(href, true).query.repo || 'lingbuzz';
 	
 	var freshFeedItemStub = {
@@ -122,19 +124,19 @@ function getFeedItem(entryHtml, cb) {
 		if ( status == 'freshly changed' ) {
 			console.error('FRESHLY CHANGED, SO IGNORE THE CACHE!');
 			console.error('GET ' + href + ' ...');
-			request(href, parseEntry);
+			request({url: href, headers: HEADERS}, parseEntry);
 			return;
 		}
 		cache.get(cacheKey, function(err, feedItem) {
 			if (err) {
 				console.error(err);
 				console.error('GET ' + href + ' ...');
-				request(href, parseEntry);
+				request({url: href, headers: HEADERS}, parseEntry);
 			} else if ( feedItem.title !== freshFeedItemStub.title ||
 				feedItem.author !== freshFeedItemStub.author ) {
 				console.error('BASIC DATA MISMATCH: ' + cacheKey);
 				console.error('GET ' + href + ' ...');
-				request(href, parseEntry);			
+				request({url: href, headers: HEADERS}, parseEntry);			
 			} else {
 				cb(null, feedItem);
 			}
@@ -144,8 +146,8 @@ function getFeedItem(entryHtml, cb) {
 	}
 }
 
-console.error('GET ' + lingbuzz + ' ...');
-request(lingbuzz, function(err, res, body) {
+console.error('GET ' + LINGBUZZ + ' ...');
+request({url: LINGBUZZ, headers: HEADERS}, function(err, res, body) {
 	if (err) {
 		console.error(err);
 		return;
