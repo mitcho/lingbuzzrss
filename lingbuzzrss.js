@@ -13,7 +13,12 @@ var request = require("request"),
 
 const LINGBUZZ = 'http://ling.auf.net/lingbuzz',
 	DOMAIN = 'http://ling.auf.net',
-	HEADERS = {'User-Agent': 'LingBuzz RSS feed; http://github.com/mitcho/lingbuzzrss'};
+	HEADERS = {'User-Agent': 'LingBuzz RSS feed; http://github.com/mitcho/lingbuzzrss'},
+	TWEETLENGTH = 140,
+	URLLENGTH = 35; // the length of a lingbuzz url
+
+// For twitter account:
+var twitter = (2 in process.argv && process.argv[2] == '--twitter');
 
 // Start building the RSS feed, with the requisite header info
 var feed = new RSS({
@@ -73,6 +78,20 @@ Cache.prototype = {
 };
 var cache = new Cache('cache');
 
+function getShortAuthors(authors) {
+	if (authors.length == 1)
+		return authors[0];
+
+	var lastNames = authors.map(function(x) {
+		var split = x.split(', ');
+		return split[0];
+	});
+	if (lastNames.length == 2)
+		return lastNames[0] + ' & ' + lastNames[1];
+	else
+		return lastNames[0] + ' et al';
+}
+
 // Gets an individual feed item, by scraping a /lingbuzz/###### webpage.
 // Used as an async callback
 // Q: Which reminds me, why is this code all async anyway?
@@ -88,17 +107,20 @@ function getFeedItem(entryHtml, cb) {
 	var authors = entry.find('td:nth-child(1) > a').map(textpart).get();
 	var status = entry.find('td:nth-child(2)').text().trim(); // 'new' || 'freshly changed'
 	var link = entry.find('td:nth-child(4) > a');
+	var title = link.text();
 	var cacheKey = link.attr('href').replace(/^\/lingbuzz\/(\d+)\/?$/, '$1');
 	var href = url.resolve(DOMAIN, link.attr('href'));
 	var source = url.parse(href, true).query.repo || 'lingbuzz';
 
 	var freshFeedItemStub = {
-		title: link.text(),
+		title: title,
 		description: '',
 		url: href,
 		author: ('join' in authors ? authors.join('; ') : ''),
+		shortAuthor: getShortAuthors(authors),
 		source: source,
-		guid: cacheKey
+		guid: cacheKey,
+		categories: []
 	};
 
 	function parseEntry(err, res, body) {
@@ -184,7 +206,32 @@ request({url: LINGBUZZ, headers: HEADERS}, function(err, res, body) {
 	async.map(entries.toArray(), getFeedItem, function(err, results) {
 		// look at each result; if it's a lingbuzz item, add it to the feed
 		results.forEach(function(feedItem) {
+		
+			// if we're constructing the twitter feed, take over the title field:
+			if (twitter) {
+				feedItem.title = feedItem.shortAuthor + ': ' + feedItem.title;
+				
+				if (feedItem.title.length > TWEETLENGTH - URLLENGTH)
+					feedItem.title = feedItem.title.substr(0,TWEETLENGTH - URLLENGTH - 1) + '...';
+				
+				feedItem.title = feedItem.title + ' ' + feedItem.url;
+				
+				// add hashtags:
+				var twitterCategories = feedItem.categories.map(function (x) {
+					return x.replace(/\s/,'');
+				});
+				while (twitterCategories.length) {
+					var consider = twitterCategories.shift();
+					if (feedItem.title.length + consider.length + 2 < TWEETLENGTH)
+						feedItem.title = feedItem.title + ' #' + consider;
+					else
+						break;
+				}
+			}
+
+			// debug:
 			console.error(feedItem);
+
 			if (feedItem.source == 'lingbuzz')
 				feed.item(feedItem);
 		});
