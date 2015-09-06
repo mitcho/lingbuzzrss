@@ -11,6 +11,7 @@ Notes for users
 ---------------
 
 * The feed excludes external listings shown on the website (ROA + Semantics Archive). Semantics Archive already has its own RSS feed.
+* If you like this feed, you probably would also enjoy [my better Linguist List RSS feeds](http://mitcho.com/blog/projects/better-linguist-list-rss-feeds/).
 
 Usage for hackers
 -----------------
