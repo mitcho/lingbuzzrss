@@ -85,8 +85,8 @@ function getFeedItem(entryHtml, cb) {
 	var $ = cheerio.load(entryHtml);
 	var entry = $(entryHtml);
 	function textpart() { return $(this).text().trim(); }
-	var authors = entry.find('td:nth-child(1) > a').map(textpart);
-	var status = entry.find('td:nth-child(2)').text().trim();
+	var authors = entry.find('td:nth-child(1) > a').map(textpart).get();
+	var status = entry.find('td:nth-child(2)').text().trim(); // 'new' || 'freshly changed'
 	var link = entry.find('td:nth-child(4) > a');
 	var cacheKey = link.attr('href').replace(/^\/lingbuzz\/(\d+)\/?$/, '$1');
 	var href = url.resolve(DOMAIN, link.attr('href'));
@@ -96,7 +96,7 @@ function getFeedItem(entryHtml, cb) {
 		title: link.text(),
 		description: '',
 		url: href,
-		author: authors.join('; '),
+		author: ('join' in authors ? authors.join('; ') : ''),
 		source: source,
 		guid: cacheKey
 	};
