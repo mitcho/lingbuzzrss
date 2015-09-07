@@ -1,6 +1,6 @@
 // lingbuzzrss.js
 // Michael Yoshitaka Erlewine <mitcho@mitcho.com>
-// Dedicated to the public domain, 2013
+// Dedicated to the public domain, 2013--2015
 // https://github.com/mitcho/lingbuzzrss/
 
 var request = require("request"),
@@ -20,6 +20,8 @@ const LINGBUZZ = 'http://ling.auf.net/lingbuzz',
 // For twitter account:
 var twitter = (2 in process.argv && process.argv[2] == '--twitter');
 
+var now = (new Date()).toString();
+
 // Start building the RSS feed, with the requisite header info
 var feed = new RSS({
 		title: 'LingBuzz',
@@ -28,13 +30,13 @@ var feed = new RSS({
 		site_url: 'http://ling.auf.net/lingbuzz',
 		// image_url: 'http://example.com/icon.png',
 		// docs: 'http://example.com/rss/docs.html',
-		author: 'LingBuzz',
+		// author: 'LingBuzz',
 		// managingEditor: 'Dylan Greene',
-		webMaster: 'Michael Yoshitaka Erlewine <mitcho@mitcho.com>',
+		webMaster: 'mitcho@mitcho.com (Michael Yoshitaka Erlewine)',
 		// copyright: '2013 Dylan Greene',
 		language: 'en',
 		categories: ['linguistics'],
-		pubDate: 'May 20, 2012 04:00:00 GMT', // todo: fix
+		pubDate: now,
 		ttl: '60' // todo: fix?
 	});
 
@@ -155,6 +157,9 @@ function getFeedItem(entryHtml, cb) {
 		// OMG THIS IS A TERRIBLE HACK!
 		$$('body').children().remove();
 		freshFeedItemStub.description = $$('body').text().trim();
+
+		// @todo figure out how to keep date stable across "fresh" updates
+// 		freshFeedItemStub.date = now;
 
 		cache.set(cacheKey, freshFeedItemStub, function(err) {
 			cb(err, freshFeedItemStub);
