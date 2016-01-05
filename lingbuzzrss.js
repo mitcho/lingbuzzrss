@@ -223,7 +223,7 @@ request({url: LINGBUZZ, headers: HEADERS}, function(err, res, body) {
 				
 				// add hashtags:
 				var twitterCategories = feedItem.categories.map(function (x) {
-					return x.replace(/[^\w_]/,'');
+					return x.replace(/[^\w_]/g, '');
 				});
 				while (twitterCategories.length) {
 					var consider = twitterCategories.shift();
