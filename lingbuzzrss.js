@@ -156,7 +156,9 @@ function getFeedItem(entryHtml, cb) {
 		// remove everything else and then read the body text. (!!!)
 		// OMG THIS IS A TERRIBLE HACK!
 		$$('body').children().remove();
-		freshFeedItemStub.description = $$('body').text().trim();
+		var b = $$('body').text().trim();
+		// Fish out control characters.
+		freshFeedItemStub.description = b.replace(/[\u0000-\u001F\u007F]/gi, '');
 
 		// @todo figure out how to keep date stable across "fresh" updates
 // 		freshFeedItemStub.date = now;
